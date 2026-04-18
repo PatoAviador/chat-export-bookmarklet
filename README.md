@@ -4,11 +4,17 @@ Un bookmarklet para exportar conversaciones de los principales LLMs a formato Ma
 
 ## Plataformas soportadas
 
-- Claude (claude.ai)
-- ChatGPT (chatgpt.com)
-- Gemini (gemini.google.com)
-- Grok (grok.com)
-- Open WebUI (instancias locales en localhost:8080 o 192.168.x.x:8080)
+### `bookmarklet.js` — Exportador principal
+* Claude (claude.ai)
+* ChatGPT (chatgpt.com)
+* Gemini (gemini.google.com)
+* Grok (grok.com)
+* Open WebUI (instancias locales en localhost:8080 o 192.168.x.x:8080)
+
+### `grok-x.js` — Exportador específico para Grok en X
+* Grok integrado en X/Twitter (x.com/i/grok)
+
+> **¿Por qué dos bookmarklets?** Grok dentro de X vive en un entorno técnico completamente distinto a `grok.com`. Usa clases CSS internas de X (`r-imh66m`, `r-1kt6imw`) en lugar de selectores estables, y requiere auto-scroll para cargar el histórico completo. Por eso se mantiene como herramienta separada.
 
 ## Características
 
@@ -59,7 +65,9 @@ Respuesta del modelo...
 - Los selectores CSS dependen de la estructura HTML de cada plataforma. Si una plataforma actualiza su interfaz, el bookmarklet puede dejar de funcionar en ese sitio. Se irán publicando actualizaciones en este repositorio.
 - Para Grok, usar siempre **grok.com** y no x.com.
 - Para Open WebUI, se detecta automáticamente si la instancia corre en el puerto 8080.
-
+- Para Grok en X (x.com/i/grok), usa **`grok-x.js`** en lugar del bookmarklet principal.
+- Los selectores de `grok-x.js` dependen de clases CSS internas de X, que pueden cambiar con actualizaciones de su frontend. Si deja de funcionar, abre una issue.
+  
 ## Contribuciones
 
 Si el bookmarklet deja de funcionar en alguna plataforma o quieres añadir soporte para otras, abre un issue o envía un pull request.
