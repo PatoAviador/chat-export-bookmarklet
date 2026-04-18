@@ -1,0 +1,146 @@
+(function(){
+  if(!location.href.includes('x.com/i/grok')){alert('Solo funciona en x.com/i/grok');return;}
+
+  var date=new Date().toISOString().slice(0,10);
+  var title=(document.title||'grok-chat').replace(/\s*\/\s*X\s*$/i,'').replace(/\s*on X$/i,'').replace(/[^\w\sáéíóúñüÁÉÍÓÚÑÜ-]/g,' ').trim().slice(0,60)||'grok-chat';
+
+  function table2md(tbl){
+    var rows=Array.from(tbl.querySelectorAll('tr'));
+    if(!rows.length)return '';
+    var out='\n\n';
+    rows.forEach(function(row,ri){
+      var cells=Array.from(row.querySelectorAll('th,td'));
+      var cols=cells.map(function(c){return walk(c).trim().replace(/\n+/g,' ').replace(/\|/g,'\\|');});
+      out+='| '+cols.join(' | ')+' |\n';
+      if(ri===0){out+='| '+cells.map(function(){return '---';}).join(' | ')+' |\n';}
+    });
+    return out+'\n';
+  }
+
+  function walk(node){
+    if(!node)return '';
+    if(node.nodeType===3)return node.textContent;
+    var tag=(node.tagName||'').toLowerCase();
+    var cls=typeof node.className==='string'?node.className:'';
+    if(['script','style','button','svg','input'].indexOf(tag)>-1)return '';
+    if(tag==='table')return table2md(node);
+    if(['tr','td','th','thead','tbody'].indexOf(tag)>-1){
+      return Array.from(node.childNodes).map(walk).join('');
+    }
+    var inner=Array.from(node.childNodes).map(walk).join('');
+    if(tag==='br')return '\n';
+    if(tag==='p')return '\n\n'+inner.trim()+'\n\n';
+    if(tag==='h1')return '\n\n# '+inner.trim()+'\n\n';
+    if(tag==='h2')return '\n\n## '+inner.trim()+'\n\n';
+    if(tag==='h3')return '\n\n### '+inner.trim()+'\n\n';
+    if(tag==='h4')return '\n\n#### '+inner.trim()+'\n\n';
+    if(tag==='strong'||tag==='b')return '**'+inner+'**';
+    if(tag==='em'||tag==='i')return '*'+inner+'*';
+    if(tag==='code')return inner.indexOf('\n')>-1?'\n\n```\n'+inner+'\n```\n\n':'`'+inner+'`';
+    if(tag==='pre')return '\n\n```\n'+inner+'\n```\n\n';
+    if(tag==='blockquote')return '\n\n'+inner.trim().split('\n').map(function(l){return '> '+l;}).join('\n')+'\n\n';
+    if(tag==='ul'){
+      var uItems=Array.from(node.children).map(function(li){return '- '+walk(li).trim();});
+      return '\n\n'+uItems.join('\n')+'\n\n';
+    }
+    if(tag==='ol'){
+      var oItems=Array.from(node.children).map(function(li,i){return (i+1)+'. '+walk(li).trim();});
+      return '\n\n'+oItems.join('\n')+'\n\n';
+    }
+    if(tag==='li')return inner;
+    if(tag==='a'){
+      var href=node.getAttribute('href')||'';
+      return (href&&href.startsWith('http')&&inner.trim())?'['+inner.trim()+']('+href+')':inner;
+    }
+    // Clases CSS propias de X.com
+    if(cls.indexOf('r-adyw6z')>-1&&cls.indexOf('r-135wba7')>-1)return '\n\n## '+inner.trim()+'\n\n';
+    if(tag==='span'&&cls.indexOf('r-b88u0q')>-1)return '**'+inner+'**';
+    return inner;
+  }
+
+  function html2md(el){return walk(el).replace(/\n{4,}/g,'\n\n\n').trim();}
+
+  function findScroller(){
+    var main=document.querySelector('main');
+    if(!main)return document.scrollingElement;
+    var kids=main.querySelectorAll('*');
+    for(var i=0;i<kids.length;i++){
+      var s=window.getComputedStyle(kids[i]);
+      if((s.overflowY==='auto'||s.overflowY==='scroll')&&kids[i].scrollHeight>kids[i].clientHeight+10)return kids[i];
+    }
+    return main;
+  }
+
+  function autoScrollToTop(el,done){
+    var prev=-1,stable=0,iter=0;
+    var t=setInterval(function(){
+      el.scrollTop=0;iter++;
+      if(el.scrollHeight===prev){stable++;if(stable>=3||iter>50){clearInterval(t);done();}}
+      else{stable=0;prev=el.scrollHeight;}
+    },600);
+  }
+
+  function extractMessages(){
+    var userEls=Array.from(document.querySelectorAll('div[class*="r-imh66m"][class*="r-1kt6imw"]'));
+    var grokEls=Array.from(document.querySelectorAll('div[class*="r-imh66m"]:not([class*="r-1kt6imw"])'));
+    if(!userEls.length&&!grokEls.length)return null;
+    var all=[];
+    userEls.forEach(function(el){all.push({el:el,role:'Tú'});});
+    grokEls.forEach(function(el){all.push({el:el,role:'Grok'});});
+    all.sort(function(a,b){return(a.el.compareDocumentPosition(b.el)&Node.DOCUMENT_POSITION_FOLLOWING)?-1:1;});
+    return all.map(function(m){return{role:m.role,text:html2md(m.el)};}).filter(function(m){return m.text.length>0;});
+  }
+
+  function buildMarkdown(msgs){
+    var lines=['# '+title,'','**URL:** '+location.href,'**Capturado:** '+date,'**Plataforma:** x.com/i/grok','**Mensajes:** '+msgs.length,'','---',''];
+    msgs.forEach(function(m){
+      lines.push('### '+(m.role==='Tú'?'👤':'🤖')+' '+m.role);
+      lines.push('');lines.push(m.text);lines.push('');lines.push('---');lines.push('');
+    });
+    return lines.join('\n');
+  }
+
+  function download(md){
+    var blob=new Blob([md],{type:'text/markdown;charset=utf-8'});
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=date+'-grok-x-'+title.replace(/\s+/g,'_')+'.md';
+    document.body.appendChild(a);a.click();
+    setTimeout(function(){a.remove();URL.revokeObjectURL(a.href);},200);
+  }
+
+  function badge(txt,color){
+    var b=document.getElementById('__gx');
+    if(!b){
+      b=document.createElement('div');b.id='__gx';
+      b.style.cssText='position:fixed;top:12px;right:12px;z-index:99999;color:#fff;padding:8px 16px;border-radius:8px;font-family:system-ui,sans-serif;font-size:14px;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.4)';
+      document.body.appendChild(b);
+    }
+    b.textContent=txt;b.style.background=color||'#1D9BF0';return b;
+  }
+  function removeBadge(){var b=document.getElementById('__gx');if(b)b.remove();}
+
+  var sc=findScroller();
+  var orig=sc.scrollTop;
+  badge('⏳ Cargando histórico…','#1D9BF0');
+  autoScrollToTop(sc,function(){
+    badge('📝 Extrayendo mensajes…','#1D9BF0');
+    sc.scrollTop=orig;
+    setTimeout(function(){
+      try{
+        var msgs=extractMessages();
+        if(!msgs||!msgs.length){
+          badge('❌ Sin mensajes','#E0245E');setTimeout(removeBadge,4000);
+          alert('No se detectaron mensajes.\nEjecuta el inspector y comparte el resultado.');
+          return;
+        }
+        download(buildMarkdown(msgs));
+        badge('✅ '+msgs.length+' mensajes exportados','#17BF63');
+        setTimeout(removeBadge,4000);
+      }catch(err){
+        console.error('[GrokExport]',err);
+        badge('❌ '+err.message,'#E0245E');
+      }
+    },600);
+  });
+})();
